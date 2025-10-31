@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AnalizadorLexicoProlog")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2cf76e4ccc2b1f022ac862e080b745f763897163")]
 [assembly: System.Reflection.AssemblyProductAttribute("AnalizadorLexicoProlog")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AnalizadorLexicoProlog")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\ASUS\\AnalizadorLexico_Prolog\\AnalizadorLexicoProlog\\AnalizadorLexicoProlog.csproj": {}
+    "C:\\Users\\HP\\Desktop\\TLF\\AnalizadorLexicoProlog\\AnalizadorLexicoProlog.csproj": {}
   },
   "projects": {
-    "C:\\Users\\ASUS\\AnalizadorLexico_Prolog\\AnalizadorLexicoProlog\\AnalizadorLexicoProlog.csproj": {
+    "C:\\Users\\HP\\Desktop\\TLF\\AnalizadorLexicoProlog\\AnalizadorLexicoProlog.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\ASUS\\AnalizadorLexico_Prolog\\AnalizadorLexicoProlog\\AnalizadorLexicoProlog.csproj",
+        "projectUniqueName": "C:\\Users\\HP\\Desktop\\TLF\\AnalizadorLexicoProlog\\AnalizadorLexicoProlog.csproj",
         "projectName": "AnalizadorLexicoProlog",
-        "projectPath": "C:\\Users\\ASUS\\AnalizadorLexico_Prolog\\AnalizadorLexicoProlog\\AnalizadorLexicoProlog.csproj",
-        "packagesPath": "C:\\Users\\ASUS\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\ASUS\\AnalizadorLexico_Prolog\\AnalizadorLexicoProlog\\obj\\",
+        "projectPath": "C:\\Users\\HP\\Desktop\\TLF\\AnalizadorLexicoProlog\\AnalizadorLexicoProlog.csproj",
+        "packagesPath": "C:\\Users\\HP\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\HP\\Desktop\\TLF\\AnalizadorLexicoProlog\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\ASUS\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\HP\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0-windows"
