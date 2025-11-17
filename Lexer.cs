@@ -241,7 +241,7 @@ namespace AnalizadorLexicoProlog
                         continue;
                     }
 
-                    if (par is "&&" or "||")
+                    if (par is "," or ";")
                     {
                         Tokens.Add(new Token
                         {
@@ -250,7 +250,6 @@ namespace AnalizadorLexicoProlog
                             Linea = inicioLinea,
                             Columna = inicioColumna
                         });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
                         Avanzar(codigo, ref i, ref linea, ref columna);
                         continue;
                     }
