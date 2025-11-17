@@ -38,10 +38,9 @@ namespace AnalizadorLexicoProlog
                     continue;
                 }
 
-                if (c == '/' && i + 1 < codigo.Length && codigo[i + 1] == '/')
+                if (c == '%')
                 {
-                    Avanzar(codigo, ref i, ref linea, ref columna);
-                    Avanzar(codigo, ref i, ref linea, ref columna);
+                   Avanzar(codigo, ref i, ref linea, ref columna);
                     while (i < codigo.Length && codigo[i] != '\n')
                     {
                         Avanzar(codigo, ref i, ref linea, ref columna);
