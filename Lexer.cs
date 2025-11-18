@@ -1,372 +1,308 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace AnalizadorLexicoProlog
 {
+    /// <summary>
+    /// Clase principal encargada de realizar el análisis léxico del lenguaje Prolog.
+    /// Recorre el código fuente carácter por carácter, reconociendo los tokens definidos en los requisitos del proyecto.
+    /// </summary>
     public class Lexer
     {
-        public List<Token> Tokens { get; private set; } = new();
-        public List<string> Errores { get; private set; } = new();
+        // Lista donde se almacenan los tokens reconocidos
+        public List<Token> Tokens { get; private set; } = new List<Token>();
 
-        private readonly HashSet<string> palabrasReservadas = new(StringComparer.Ordinal)
-        {
-            "consult", "listing", "fail", "true", "false", "not", "is", "repeat", "assert", "retract"
-        };
+        // Lista de errores encontrados durante el análisis
+        public List<string> Errores { get; private set; } = new List<string>();
 
+        /// <summary>
+        /// Método principal del analizador léxico.
+        /// Recibe el código fuente en formato string, lo analiza y genera las listas de Tokens y Errores.
+        /// </summary>
+        /// <param name="codigo">Texto fuente a analizar (contenido del archivo .pl)</param>
         public void Analizar(string codigo)
         {
             Tokens.Clear();
             Errores.Clear();
 
-            if (codigo == null)
+            //  Palabras reservadas básicas de Prolog
+            var palabrasReservadas = new HashSet<string>
             {
-                return;
-            }
+                "consult", "listing", "fail", "true", "false", "not", "is", "repeat", "assert", "retract"
+            };
 
-            int linea = 1;
-            int columna = 1;
+            //  Operadores aritméticos admitidos (incluyendo mod y div)
+            var operadoresAritmeticos = new HashSet<string>
+            {
+                "+", "-", "*", "/", "//", "mod", "div", "^", "**"
+            };
+
+            //  Operadores relacionales con y sin evaluación
+            var operadoresRelacionales = new HashSet<string>
+            {
+                "is", "=:=", "=\\=", ">", "<", ">=", "=<", "==", "\\==", "@>", "@<", "@>=", "@=<"
+            };
+
+            //  Variables de control para el recorrido del código
+            int linea = 1, columna = 1;
             int i = 0;
+            bool dentroDeRegla = false; // Indica si el analizador está dentro del cuerpo de una regla (para distinguir las comas)
 
+            //  Recorre todo el texto carácter a carácter
             while (i < codigo.Length)
             {
                 char c = codigo[i];
 
+                //  Ignorar espacios y saltos de línea
                 if (char.IsWhiteSpace(c))
                 {
-                    Avanzar(codigo, ref i, ref linea, ref columna);
+                    if (c == '\n') { linea++; columna = 1; }
+                    else columna++;
+                    i++;
                     continue;
                 }
 
+                //  Comentario de línea (%)
                 if (c == '%')
                 {
-                   Avanzar(codigo, ref i, ref linea, ref columna);
-                    while (i < codigo.Length && codigo[i] != '\n')
-                    {
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                    }
+                    while (i < codigo.Length && codigo[i] != '\n') i++;
                     continue;
                 }
 
+                //  Comentario de bloque /* ... */
                 if (c == '/' && i + 1 < codigo.Length && codigo[i + 1] == '*')
                 {
-                    int inicioLinea = linea;
-                    int inicioColumna = columna;
-                    Avanzar(codigo, ref i, ref linea, ref columna);
-                    Avanzar(codigo, ref i, ref linea, ref columna);
-                    bool cerrado = false;
-
-                    while (i < codigo.Length)
+                    i += 2;
+                    while (i + 1 < codigo.Length && !(codigo[i] == '*' && codigo[i + 1] == '/'))
                     {
-                        if (codigo[i] == '*' && i + 1 < codigo.Length && codigo[i + 1] == '/')
-                        {
-                            Avanzar(codigo, ref i, ref linea, ref columna);
-                            Avanzar(codigo, ref i, ref linea, ref columna);
-                            cerrado = true;
-                            break;
-                        }
-
-                        Avanzar(codigo, ref i, ref linea, ref columna);
+                        if (codigo[i] == '\n') { linea++; columna = 1; }
+                        i++;
                     }
 
-                    if (!cerrado)
+                    // Si no se cerró el comentario de bloque correctamente
+                    if (i + 1 >= codigo.Length)
                     {
-                        Errores.Add($"Linea {inicioLinea}, columna {inicioColumna}: comentario de bloque sin cerrar.");
+                        Errores.Add($"Error: comentario de bloque sin cerrar en línea {linea}");
+                        break;
                     }
 
+                    i += 2;
                     continue;
                 }
 
+                //  Cadenas de texto ("texto")
                 if (c == '"')
                 {
-                    int inicioLinea = linea;
-                    int inicioColumna = columna;
-                    var sb = new StringBuilder();
-                    Avanzar(codigo, ref i, ref linea, ref columna);
-                    bool cerrada = false;
+                    int start = i;
+                    i++;
 
-                    while (i < codigo.Length)
+                    // Se recorren los caracteres internos hasta cerrar la comilla
+                    while (i < codigo.Length && codigo[i] != '"')
                     {
-                        char actual = codigo[i];
-
-                        if (actual == '\\')
-                        {
-                            if (i + 1 >= codigo.Length)
-                            {
-                                Errores.Add($"Linea {inicioLinea}, columna {inicioColumna}: secuencia de escape incompleta en cadena.");
-                                Avanzar(codigo, ref i, ref linea, ref columna);
-                                break;
-                            }
-
-                            sb.Append(actual);
-                            Avanzar(codigo, ref i, ref linea, ref columna);
-                            char escapeChar = codigo[i];
-                            sb.Append(escapeChar);
-                            Avanzar(codigo, ref i, ref linea, ref columna);
-                            continue;
-                        }
-
-                        if (actual == '"')
-                        {
-                            Avanzar(codigo, ref i, ref linea, ref columna);
-                            cerrada = true;
-                            break;
-                        }
-
-                        sb.Append(actual);
-                        Avanzar(codigo, ref i, ref linea, ref columna);
+                        if (codigo[i] == '\\' && i + 1 < codigo.Length) i++; // Maneja escapes como \" o \n
+                        i++;
                     }
 
-                    if (!cerrada)
+                    // Si se encuentra la comilla de cierre
+                    if (i < codigo.Length && codigo[i] == '"')
                     {
-                        Errores.Add($"Linea {inicioLinea}, columna {inicioColumna}: cadena sin cerrar.");
+                        i++;
+                        Tokens.Add(new Token
+                        {
+                            Lexema = codigo.Substring(start, i - start),
+                            Tipo = "CADENA",
+                            Linea = linea,
+                            Columna = columna
+                        });
                     }
                     else
                     {
-                        Tokens.Add(new Token
-                        {
-                            Lexema = "\"" + sb.ToString() + "\"",
-                            Tipo = "CADENA",
-                            Linea = inicioLinea,
-                            Columna = inicioColumna
-                        });
+                        Errores.Add($"Línea {linea}: cadena sin cerrar.");
                     }
 
+                    columna = i + 1;
                     continue;
                 }
 
+                //  Identificadores, variables, operadores con nombre o palabras reservadas
+                if (char.IsLetter(c) || c == '_')
+                {
+                    int start = i;
+                    while (i < codigo.Length && (char.IsLetterOrDigit(codigo[i]) || codigo[i] == '_')) i++;
+
+                    string lexema = codigo.Substring(start, i - start);
+                    string tipo;
+
+                    // Clasificación del token según su valor
+                    if (operadoresAritmeticos.Contains(lexema))
+                        tipo = "OPERADOR_ARITMETICO";
+                    else if (operadoresRelacionales.Contains(lexema))
+                        tipo = "OPERADOR_COMPARACION";
+                    else if (palabrasReservadas.Contains(lexema))
+                        tipo = "PALABRA_RESERVADA";
+                    else if (char.IsUpper(lexema[0]) || lexema[0] == '_')
+                        tipo = "VARIABLE";
+                    else
+                        tipo = "ATOMO"; // Por defecto, si empieza en minúscula es un átomo
+
+                    Tokens.Add(new Token
+                    {
+                        Lexema = lexema,
+                        Tipo = tipo,
+                        Linea = linea,
+                        Columna = columna
+                    });
+
+                    columna += lexema.Length;
+                    continue;
+                }
+
+                //  Números enteros o decimales
                 if (char.IsDigit(c))
                 {
-                    int inicioLinea = linea;
-                    int inicioColumna = columna;
-                    var sb = new StringBuilder();
+                    int start = i;
                     bool esDecimal = false;
 
-                    while (i < codigo.Length)
+                    // Parte entera
+                    while (i < codigo.Length && char.IsDigit(codigo[i])) i++;
+
+                    // Parte decimal (si existe)
+                    if (i < codigo.Length - 1 && codigo[i] == '.' && char.IsDigit(codigo[i + 1]))
                     {
-                        char actual = codigo[i];
-
-                        if (actual == '.')
-                        {
-                            if (esDecimal || i + 1 >= codigo.Length || !char.IsDigit(codigo[i + 1]))
-                            {
-                                break;
-                            }
-
-                            esDecimal = true;
-                            sb.Append(actual);
-                            Avanzar(codigo, ref i, ref linea, ref columna);
-                            continue;
-                        }
-
-                        if (!char.IsDigit(actual))
-                        {
-                            break;
-                        }
-
-                        sb.Append(actual);
-                        Avanzar(codigo, ref i, ref linea, ref columna);
+                        esDecimal = true;
+                        i++;
+                        while (i < codigo.Length && char.IsDigit(codigo[i])) i++;
                     }
 
-                    string numero = sb.ToString();
-                    string tipoNumero = esDecimal ? "NUM_DECIMAL" : "NUM_ENTERO";
-
+                    string numero = codigo.Substring(start, i - start);
                     Tokens.Add(new Token
                     {
                         Lexema = numero,
-                        Tipo = tipoNumero,
-                        Linea = inicioLinea,
-                        Columna = inicioColumna
+                        Tipo = esDecimal ? "NUM_DECIMAL" : "NUM_ENTERO",
+                        Linea = linea,
+                        Columna = columna
                     });
 
+                    columna += numero.Length;
                     continue;
                 }
 
-                if (char.IsLetter(c) || c == '_')
+                //  Operadores compuestos de más de un carácter (=:==, >=, =<, @=<, etc.)
+                string[] operadoresCompuestos = { "=:=", "=\\=", ">=", "=<", "==", "\\==", "@>", "@<", "@>=", "@=<" };
+                bool encontrado = false;
+
+                foreach (var op in operadoresCompuestos)
                 {
-                    int inicioLinea = linea;
-                    int inicioColumna = columna;
-                    var sb = new StringBuilder();
-
-                    while (i < codigo.Length)
+                    if (codigo.Substring(i).StartsWith(op))
                     {
-                        char actual = codigo[i];
-                        if (!char.IsLetterOrDigit(actual) && actual != '_')
+                        Tokens.Add(new Token
                         {
-                            break;
-                        }
-
-                        sb.Append(actual);
-                        Avanzar(codigo, ref i, ref linea, ref columna);
+                            Lexema = op,
+                            Tipo = "OPERADOR_COMPARACION",
+                            Linea = linea,
+                            Columna = columna
+                        });
+                        i += op.Length;
+                        columna += op.Length;
+                        encontrado = true;
+                        break;
                     }
+                }
+                if (encontrado) continue;
 
-                    string identificador = sb.ToString();
-                    if (identificador.Length > 15)
-                    {
-                        Errores.Add($"Linea {inicioLinea}, columna {inicioColumna}: identificador '{identificador}' excede los 15 caracteres.");
-                    }
-
-                    string tipoIdentificador = palabrasReservadas.Contains(identificador)
-                        ? "PALABRA_RESERVADA"
-                        : "IDENTIFICADOR";
-
+                //  Operador de regla (:-)
+                if (c == ':' && i + 1 < codigo.Length && codigo[i + 1] == '-')
+                {
+                    dentroDeRegla = true; // A partir de aquí, las comas son conjunciones
                     Tokens.Add(new Token
                     {
-                        Lexema = identificador,
-                        Tipo = tipoIdentificador,
-                        Linea = inicioLinea,
-                        Columna = inicioColumna
+                        Lexema = ":-",
+                        Tipo = "OPERADOR_REGLA",
+                        Linea = linea,
+                        Columna = columna
                     });
-
+                    i += 2;
+                    columna += 2;
                     continue;
                 }
 
-                if (i + 1 < codigo.Length)
+                //  Consulta (?-)
+                if (c == '?' && i + 1 < codigo.Length && codigo[i + 1] == '-')
                 {
-                    string par = string.Concat(c, codigo[i + 1]);
-                    int inicioLinea = linea;
-                    int inicioColumna = columna;
-
-                    if (par is "==" or "!=" or ">=" or "<=")
+                    Tokens.Add(new Token
                     {
-                        Tokens.Add(new Token
-                        {
-                            Lexema = par,
-                            Tipo = "OP_COMPARACION",
-                            Linea = inicioLinea,
-                            Columna = inicioColumna
-                        });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
-                    }
-
-                    if (par is "," or ";")
-                    {
-                        Tokens.Add(new Token
-                        {
-                            Lexema = par,
-                            Tipo = "OP_LOGICO",
-                            Linea = inicioLinea,
-                            Columna = inicioColumna
-                        });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
-                    }
-
-                    if (par is "++" or "--")
-                    {
-                        Tokens.Add(new Token
-                        {
-                            Lexema = par,
-                            Tipo = "OP_INCREMENTO",
-                            Linea = inicioLinea,
-                            Columna = inicioColumna
-                        });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
-                    }
-
-                    if (par == ":-")
-                    {
-                        Tokens.Add(new Token
-                        {
-                            Lexema = par,
-                            Tipo = "OP_ASIGNACION",
-                            Linea = inicioLinea,
-                            Columna = inicioColumna
-                        });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
-                    }
-
-                    if (par == "?-")
-                    {
-                        Tokens.Add(new Token
-                        {
-                            Lexema = par,
-                            Tipo = "OP_CONSULTA",
-                            Linea = inicioLinea,
-                            Columna = inicioColumna
-                        });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
-                    }
+                        Lexema = "?-",
+                        Tipo = "CONSULTA",
+                        Linea = linea,
+                        Columna = columna
+                    });
+                    i += 2;
+                    columna += 2;
+                    continue;
                 }
 
+                //  Símbolos y operadores unitarios
                 switch (c)
                 {
+                    case '(':
+                    case ')':
+                        Tokens.Add(new Token { Lexema = c.ToString(), Tipo = "PARENTESIS", Linea = linea, Columna = columna });
+                        break;
+
+                    case '{':
+                    case '}':
+                        Tokens.Add(new Token { Lexema = c.ToString(), Tipo = "LLAVE", Linea = linea, Columna = columna });
+                        break;
+
+                    case '.':
+                        Tokens.Add(new Token { Lexema = ".", Tipo = "TERMINAL", Linea = linea, Columna = columna });
+                        dentroDeRegla = false; // Fin de regla
+                        break;
+
+                    // Detección contextual de comas (como separador o conjunción lógica)
+                    case ',':
+                        Tokens.Add(new Token
+                        {
+                            Lexema = ",",
+                            Tipo = dentroDeRegla ? "OPERADOR_LOGICO_CONJUNCION" : "SEPARADOR",
+                            Linea = linea,
+                            Columna = columna
+                        });
+                        break;
+
+                    // Disyunción lógica (;)
+                    case ';':
+                        Tokens.Add(new Token
+                        {
+                            Lexema = ";",
+                            Tipo = "OPERADOR_LOGICO_DISYUNCION",
+                            Linea = linea,
+                            Columna = columna
+                        });
+                        break;
+
+                    // Operadores aritméticos simples
                     case '+':
                     case '-':
                     case '*':
                     case '/':
-                    case '%':
-                        Tokens.Add(new Token { Lexema = c.ToString(), Tipo = "OP_ARITMETICO", Linea = linea, Columna = columna });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
-                    case '=':
-                        Tokens.Add(new Token { Lexema = "=", Tipo = "OP_ASIGNACION", Linea = linea, Columna = columna });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
+                        Tokens.Add(new Token { Lexema = c.ToString(), Tipo = "OPERADOR_ARITMETICO", Linea = linea, Columna = columna });
+                        break;
+
+                    // Operadores relacionales simples (>, <, =)
                     case '>':
                     case '<':
-                        Tokens.Add(new Token { Lexema = c.ToString(), Tipo = "OP_COMPARACION", Linea = linea, Columna = columna });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
-                    case '!':
-                        Tokens.Add(new Token { Lexema = "!", Tipo = "OP_LOGICO", Linea = linea, Columna = columna });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
-                    case '(':
-                    case ')':
-                        Tokens.Add(new Token { Lexema = c.ToString(), Tipo = "PARENTESIS", Linea = linea, Columna = columna });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
-                    case '{':
-                    case '}':
-                        Tokens.Add(new Token { Lexema = c.ToString(), Tipo = "LLAVE", Linea = linea, Columna = columna });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
-                    case '.':
-                        Tokens.Add(new Token { Lexema = ".", Tipo = "TERMINAL", Linea = linea, Columna = columna });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
-                    case ',':
-                        Tokens.Add(new Token { Lexema = ",", Tipo = "SEPARADOR", Linea = linea, Columna = columna });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
-                    case '?':
-                        Tokens.Add(new Token { Lexema = "?", Tipo = "OP_CONSULTA", Linea = linea, Columna = columna });
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
+                    case '=':
+                        Tokens.Add(new Token { Lexema = c.ToString(), Tipo = "OPERADOR_COMPARACION", Linea = linea, Columna = columna });
+                        break;
+
+                    // Símbolos no reconocidos
                     default:
-                        Errores.Add($"Linea {linea}, columna {columna}: simbolo no reconocido '{c}'.");
-                        Avanzar(codigo, ref i, ref linea, ref columna);
-                        continue;
+                        Errores.Add($"Línea {linea}, Columna {columna}: símbolo no reconocido '{c}'");
+                        break;
                 }
-            }
-        }
 
-        private static void Avanzar(string codigo, ref int indice, ref int linea, ref int columna)
-        {
-            if (indice >= codigo.Length)
-            {
-                return;
-            }
-
-            char actual = codigo[indice];
-            indice++;
-
-            if (actual == '\n')
-            {
-                linea++;
-                columna = 1;
-            }
-            else
-            {
+                i++;
                 columna++;
             }
         }
